@@ -32,21 +32,21 @@ export interface TripPlan {
 
 /* ── helpers ─────────────────────────────────────────── */
 const img = (id: string, w = 600) =>
-  `https://images.unsplash.com/photo-${id}?w=${w}&q=80`;
+  `https://images.unsplash.com/${id}?w=${w}&q=80`;
 
 /* ── verified Unsplash photo slugs ──────────────────── */
 const PH = {
-  taipei101Night: "BFqaBnoGizE",
-  taipei101Day: "qhu2nFWqVEU",
-  jiufen: "OXozt4OJy8g",
-  shifen: "zhQFDQFE9n0",
-  ningxia: "nYq3nW9Z9ok",
-  cks: "feZ3pYo9PGw",
-  longshan: "0lzX1BSdjUw",
-  ximending: "pj9p_cpQT3I",
-  yehliu: "scg42P_kXJM",
-  raohe: "OF8U3MRdFMU",
-  bubbleTea: "FchqkZj7jBU",
+  taipei101Night: "photo-1747687759065-0c415cc1cf28",
+  taipei101Day: "photo-1609147110688-83b5fd1288e8",
+  jiufen: "photo-1540187334920-54e87c2771c0",
+  shifen: "photo-1676744490945-579232e2ed58",
+  ningxia: "photo-1535898331935-2d274aff0fbc",
+  cks: "photo-1752583083658-e296ea0575cd",
+  longshan: "photo-1508983985216-6007e273cc6b",
+  ximending: "photo-1580745168634-33c78f4c4177",
+  yehliu: "photo-1588442734586-3e608a2d44e9",
+  raohe: "photo-1552912810-e184f878293e",
+  bubbleTea: "photo-1747016861831-ed2903bccb69",
 };
 
 /* ================================================================
