@@ -47,7 +47,7 @@ const TripDetail = ({ trip, onBack }: TripDetailProps) => {
       </div>
 
       {/* Day Tabs */}
-      <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-md border-b border-border">
+      <div className="sticky top-[3.25rem] z-30 bg-background/90 backdrop-blur-md border-b border-border">
         <div className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 py-2">
           {trip.days.map((day, idx) => (
             <button
