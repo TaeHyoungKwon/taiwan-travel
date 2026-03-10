@@ -58,12 +58,12 @@ const Index = () => {
                 transition={{ delay: 0.2 }}
                 className="mt-3 text-lg text-muted-foreground"
               >
-                2박 3일 여행 일정을 한눈에 확인하세요
+                7개 AI 플랜을 비교하며 여행 일정을 확인하세요
               </motion.p>
             </div>
 
             {/* Trip Grid */}
-            <div className="grid gap-6 sm:grid-cols-2">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {tripsData.map((trip, i) => (
                 <motion.div
                   key={trip.id}
