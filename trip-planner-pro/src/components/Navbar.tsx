@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
-import { Plane, Utensils, Camera } from "lucide-react";
+import { Plane, Utensils, Camera, Soup } from "lucide-react";
 
-export type TabKey = "trips" | "food" | "spots";
+export type TabKey = "trips" | "food" | "food-menus" | "spots";
 
 interface NavbarProps {
   activeTab: TabKey;
@@ -10,7 +10,8 @@ interface NavbarProps {
 
 const tabs: { key: TabKey; label: string; icon: typeof Plane }[] = [
   { key: "trips", label: "여행계획", icon: Plane },
-  { key: "food", label: "먹거리", icon: Utensils },
+  { key: "food", label: "맛집", icon: Utensils },
+  { key: "food-menus", label: "음식메뉴", icon: Soup },
   { key: "spots", label: "관광지", icon: Camera },
 ];
 

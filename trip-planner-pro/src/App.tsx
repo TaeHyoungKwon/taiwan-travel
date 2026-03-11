@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Navbar, { type TabKey } from "@/components/Navbar";
 import Index from "./pages/Index.tsx";
 import Food from "./pages/Food.tsx";
+import FoodMenus from "./pages/FoodMenus.tsx";
 import Spots from "./pages/Spots.tsx";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,17 @@ const App = () => {
               transition={{ duration: 0.2 }}
             >
               <Food />
+            </motion.div>
+          )}
+          {activeTab === "food-menus" && (
+            <motion.div
+              key="food-menus"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <FoodMenus />
             </motion.div>
           )}
           {activeTab === "spots" && (
