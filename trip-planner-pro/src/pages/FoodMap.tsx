@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { MapPin, ExternalLink, Star, Filter, X } from "lucide-react";
+import { MapPin, ExternalLink, Star, Filter, X, Building2 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
@@ -141,6 +141,17 @@ const places: Place[] = [
 const ALL_CATS = [...new Set(places.map((p) => p.cat))];
 
 /* ------------------------------------------------------------------ */
+/*  Accommodation                                                      */
+/* ------------------------------------------------------------------ */
+const ACCOMMODATION = {
+  name: "숙소",
+  desc: "No.35, Chang'an W. Rd., 103 타이베이",
+  lat: 25.0503,
+  lng: 121.5178,
+  url: "https://maps.app.goo.gl/YQDv7HqJfPQXJFwZ6",
+};
+
+/* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -148,6 +159,7 @@ const FoodMap = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const accomMarkerRef = useRef<any>(null);
   const [activeCat, setActiveCat] = useState<string>("all");
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [showList, setShowList] = useState(false);
@@ -192,6 +204,7 @@ const FoodMap = () => {
 
     leafletMap.current = map;
     renderMarkers(map, "all");
+    addAccommodationMarker(map);
 
     return () => {
       map.remove();
@@ -204,6 +217,49 @@ const FoodMap = () => {
     if (!leafletMap.current) return;
     renderMarkers(leafletMap.current, activeCat);
   }, [activeCat]);
+
+  function addAccommodationMarker(map: any) {
+    const L = (window as any).L;
+    if (accomMarkerRef.current) map.removeLayer(accomMarkerRef.current);
+
+    const icon = L.divIcon({
+      className: "custom-marker",
+      html: `<div style="
+        background:#1e40af;
+        width:42px;height:42px;
+        border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:20px;
+        border:3px solid #fbbf24;
+        box-shadow:0 2px 10px rgba(0,0,0,0.4);
+        cursor:pointer;
+        animation: pulse-accom 2s infinite;
+      ">🏨</div>
+      <style>
+        @keyframes pulse-accom {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+      </style>`,
+      iconSize: [42, 42],
+      iconAnchor: [21, 21],
+    });
+
+    const marker = L.marker([ACCOMMODATION.lat, ACCOMMODATION.lng], { icon, zIndexOffset: 1000 }).addTo(map);
+    marker.bindPopup(`
+      <div style="min-width:200px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+        <div style="font-weight:700;font-size:15px;margin-bottom:4px">🏨 ${ACCOMMODATION.name}</div>
+        <div style="font-size:12px;color:#666;margin-bottom:6px">${ACCOMMODATION.desc}</div>
+        <a href="${ACCOMMODATION.url}" target="_blank" rel="noopener" style="
+          display:inline-block;padding:5px 14px;
+          background:#1e40af;color:#fff;
+          border-radius:6px;text-decoration:none;
+          font-size:12px;font-weight:600;
+        ">Google Maps에서 보기</a>
+      </div>
+    `);
+    accomMarkerRef.current = marker;
+  }
 
   function renderMarkers(map: any, cat: string) {
     const L = (window as any).L;
