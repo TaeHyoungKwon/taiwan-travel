@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>타이베이 맛집 지도 🇹🇼</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        #map { width: 100%; height: 100vh; }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 340px;
+            height: 100vh;
+            background: #fff;
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+            transition: transform 0.3s ease;
+        }
+        .sidebar.collapsed { transform: translateX(-340px); }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 12px;
+            left: 350px;
+            z-index: 1001;
+            background: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: left 0.3s ease;
+        }
+        .sidebar.collapsed + .sidebar-toggle { left: 12px; }
+
+        .sidebar-header {
+            background: linear-gradient(135deg, #e74c3c, #e67e22);
+            color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .sidebar-header h1 { font-size: 22px; margin-bottom: 4px; }
+        .sidebar-header p { font-size: 13px; opacity: 0.9; }
+
+        .filter-bar {
+            padding: 10px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            position: sticky;
+            top: 72px;
+            z-index: 9;
+        }
+        .filter-btn {
+            padding: 5px 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 16px;
+            background: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .filter-btn:hover { background: #f1f3f5; }
+        .filter-btn.active { background: #e74c3c; color: white; border-color: #e74c3c; }
+
+        .place-list { padding: 8px 0; }
+
+        .place-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f3f5;
+            transition: background 0.15s;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .place-item:hover { background: #fff5f5; }
+        .place-item.hidden { display: none; }
+
+        .place-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .place-info { flex: 1; min-width: 0; }
+        .place-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #212529;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .place-name .star { color: #f1c40f; }
+        .place-desc {
+            font-size: 12px;
+            color: #868e96;
+            margin-top: 2px;
+            line-height: 1.4;
+        }
+        .place-area {
+            font-size: 11px;
+            color: #adb5bd;
+            margin-top: 2px;
+        }
+        .gmaps-link {
+            display: inline-block;
+            margin-top: 4px;
+            font-size: 11px;
+            color: #4285f4;
+            text-decoration: none;
+        }
+        .gmaps-link:hover { text-decoration: underline; }
+
+        .leaflet-popup-content { min-width: 200px; }
+        .popup-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+        .popup-desc { font-size: 13px; color: #555; margin-bottom: 6px; line-height: 1.4; }
+        .popup-link {
+            display: inline-block;
+            padding: 6px 14px;
+            background: #4285f4 !important;
+            color: #ffffff !important;
+            border-radius: 6px;
+            text-decoration: none !important;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .popup-link:hover { background: #3367d6 !important; color: #ffffff !important; }
+
+        .category-header {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #495057;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            position: sticky;
+            top: 108px;
+            z-index: 5;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: 45vh; top: auto; bottom: 0; transform: translateY(0); }
+            .sidebar.collapsed { transform: translateY(calc(45vh - 48px)); }
+            #map { height: 60vh; }
+            .sidebar-toggle { display: none; }
+            .sidebar-header { padding: 12px 16px; cursor: pointer; }
+            .sidebar-header h1 { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header" onclick="if(window.innerWidth<=768) document.getElementById('sidebar').classList.toggle('collapsed')">
+            <h1>🇹🇼 타이베이 맛집 지도</h1>
+            <p>총 61곳 | 시먼딩 · 스린 · 닝샤 · 고궁</p>
+        </div>
+        <div class="filter-bar" id="filterBar"></div>
+        <div class="place-list" id="placeList"></div>
+    </div>
+    <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">☰</button>
+    <div id="map"></div>
+
+    <script>
+    const categories = {
+        "현지식당": { icon: "🍱", color: "#e74c3c" },
+        "간식": { icon: "🍩", color: "#e67e22" },
+        "빙수": { icon: "🍧", color: "#9b59b6" },
+        "딤섬": { icon: "🥟", color: "#f39c12" },
+        "훠궈": { icon: "🥘", color: "#c0392b" },
+        "우육면": { icon: "🍜", color: "#d35400" },
+        "사천요리": { icon: "🌶️", color: "#e74c3c" },
+        "철판요리": { icon: "🥩", color: "#8e44ad" },
+        "이자카야": { icon: "🍺", color: "#2c3e50" },
+        "술집/맥주": { icon: "🍻", color: "#34495e" },
+        "위스키": { icon: "🥃", color: "#7f8c8d" },
+        "과일": { icon: "🥭", color: "#27ae60" },
+        "마사지": { icon: "💆", color: "#16a085" },
+        "쇼핑": { icon: "🌂", color: "#2980b9" },
+        "야시장": { icon: "🏮", color: "#c0392b" },
+        "카페": { icon: "☕", color: "#795548" },
+        "고궁근처": { icon: "🏛️", color: "#607d8b" }
+    };
+
+    const places = [
+        // === 시먼딩 현지식당 ===
+        { name: "시먼누들 루로판 족발", desc: "🌟 계란돼지덮밥+족발 24시간 맛집", area: "시먼딩", cat: "현지식당", star: 1, lat: 25.0425, lng: 121.5073, url: "https://maps.app.goo.gl/gZicz1r6ZCh72R638" },
+        { name: "루로판 현지식 (廖嬌米粉湯)", desc: "루로판 현지식 새벽4시까지", area: "시먼딩", cat: "현지식당", star: 0, lat: 25.0429147, lng: 121.5048006, url: "https://maps.app.goo.gl/daJuydnfp9QV6ewe8" },
+        { name: "시먼딩 족발국수 24시", desc: "24시간 족발국수", area: "시먼딩", cat: "현지식당", star: 0, lat: 25.0423, lng: 121.5070, url: "https://maps.app.goo.gl/doVCwzoNjp8UYTXN6" },
+        { name: "일갑자찬음 (一甲子餐飲)", desc: "동파육 밥", area: "시먼딩", cat: "현지식당", star: 0, lat: 25.0416976, lng: 121.5034829, url: "https://maps.app.goo.gl/Tpgb5EhxRPRKcoXP7" },
+        { name: "삼미식당", desc: "연어초밥", area: "시먼딩", cat: "현지식당", star: 0, lat: 25.039885, lng: 121.5000789, url: "https://maps.app.goo.gl/fEEe7Re2z3G7xivQ9" },
+        { name: "메인역 물만두 마장면", desc: "이연복 맛집", area: "타이베이역", cat: "현지식당", star: 0, lat: 25.0462353, lng: 121.5188985, url: "https://maps.app.goo.gl/gSZ15x8vqntyAA477" },
+
+        // === 카페 ===
+        { name: "85도씨 커피 (85°C)", desc: "🌟 시먼 소금커피 salt caffe", area: "시먼딩", cat: "카페", star: 1, lat: 25.0440, lng: 121.5082, url: "https://maps.app.goo.gl/hRGe99UVmcD2FngD9" },
+
+        // === 간식 ===
+        { name: "우유도넛", desc: "🌟 시먼 간식 필수!", area: "시먼딩", cat: "간식", star: 1, lat: 25.042842, lng: 121.5055512, url: "https://maps.app.goo.gl/fYXiXRgrz7UEvhXu5" },
+        { name: "행복당 (幸福堂)", desc: "흑당버블티", area: "시먼딩", cat: "간식", star: 0, lat: 25.0433835, lng: 121.5070859, url: "https://maps.app.goo.gl/S39kNaxVMmsHPRCo7" },
+        { name: "아종면선 (阿宗麵線)", desc: "곱창국수", area: "시먼딩", cat: "간식", star: 0, lat: 25.0429297, lng: 121.5065172, url: "https://maps.app.goo.gl/k3exaDxHRddsydij7" },
+
+        // === 빙수 ===
+        { name: "삼형매 빙수 (三兄妹雪花冰)", desc: "시먼딩 빙수", area: "시먼딩", cat: "빙수", star: 0, lat: 25.0435, lng: 121.5058, url: "https://maps.app.goo.gl/9hMVWtQnsHwqvF1P9" },
+        { name: "스무시 빙수 (思慕昔本館)", desc: "융칸제 빙수", area: "융칸제", cat: "빙수", star: 0, lat: 25.0334, lng: 121.5297, url: "https://maps.app.goo.gl/Yexi5Qq1FEQvz6YG7" },
+
+        // === 딤섬 ===
+        { name: "금품차루 (金品茶樓)", desc: "🌟 딤섬 우육면 새우볶음밥 동파육👍 맛집", area: "중산역", cat: "딤섬", star: 1, lat: 25.0548016, lng: 121.5236296, url: "https://maps.app.goo.gl/bPNaD94UU6fGxhzd7" },
+        { name: "항주쇼롱탕포 (杭州小籠湯包)", desc: "🌟 현지식당 - 중정기념당 옆", area: "중정기념당", cat: "딤섬", star: 1, lat: 25.0332, lng: 121.5210, url: "https://maps.app.goo.gl/8CGnbmw6bQyvU7MC7" },
+        { name: "덴쉐이러우 (點水樓)", desc: "대만식 음식 모두 즐기는 곳 예약필수", area: "타이베이역", cat: "딤섬", star: 0, lat: 25.0439527, lng: 121.5088481, url: "https://maps.app.goo.gl/VntHhR2V3wdnGAhMA" },
+
+        // === 훠궈 ===
+        { name: "Wulao Pot (無老鍋)", desc: "🌟 시먼딩 고급 훠궈 (이연복&정지선)", area: "시먼딩", cat: "훠궈", star: 1, lat: 25.0445, lng: 121.5068, url: "https://maps.app.goo.gl/DiyYLr8qsCiVecPaA" },
+        { name: "딩왕 (鼎王)", desc: "시먼딩 고급 훠궈 (슈퍼주니어)", area: "시먼딩", cat: "훠궈", star: 0, lat: 25.0425185, lng: 121.507991, url: "https://maps.app.goo.gl/rCb8uGtJgyHRcKB96" },
+        { name: "원딩 (問鼎)", desc: "시먼딩 고급 훠궈", area: "시먼딩", cat: "훠궈", star: 0, lat: 25.0438, lng: 121.5055, url: "https://maps.app.goo.gl/r3zxCDP7EBCLP1oP9" },
+        { name: "Want Hotpot", desc: "🌟 마라탕 닭고기탕 고급훠궈 예약필수", area: "시먼딩", cat: "훠궈", star: 1, lat: 25.0442, lng: 121.5045, url: "https://maps.app.goo.gl/cH2rMLjTsWRxZWxG8" },
+        { name: "황지아 훠궈 (皇家)", desc: "시먼 무제한 훠궈", area: "시먼딩", cat: "훠궈", star: 0, lat: 25.0402979, lng: 121.5038147, url: "https://maps.app.goo.gl/ipcaZayAosVURhUL7" },
+        { name: "시먼마라훠궈 / 신마라훠궈", desc: "🌟 대만 체인점 무제한 훠궈", area: "시먼딩", cat: "훠궈", star: 1, lat: 25.0430, lng: 121.5062, url: "" },
+        { name: "구어바훠궈", desc: "시먼 무제한 가성비 훠궈", area: "시먼딩", cat: "훠궈", star: 0, lat: 25.0429054, lng: 121.5044935, url: "https://maps.app.goo.gl/o4YT2BHjc71A6e4x7" },
+        { name: "쭈지엔 1인팟 (築間)", desc: "🌟🌟 가성비 훠궈 강추!", area: "시먼딩", cat: "훠궈", star: 2, lat: 25.0450004, lng: 121.5052356, url: "https://maps.app.goo.gl/TTRvvyeLcgDqV1st5" },
+
+        // === 우육면 ===
+        { name: "우점 니우디엔 (牛店)", desc: "🌟 시먼 미슐랭 3년 연속", area: "시먼딩", cat: "우육면", star: 1, lat: 25.0448, lng: 121.5078, url: "https://maps.app.goo.gl/FuivJfH6W5YGPxfn6" },
+        { name: "홍사부 (洪師父)", desc: "대만 우육면대회 1등", area: "신이구", cat: "우육면", star: 0, lat: 25.0549739, lng: 121.5365087, url: "https://maps.app.goo.gl/ea8kcP52rc2RNhWm7" },
+        { name: "토마토 우육면", desc: "🌟 현지식당 추천", area: "시먼딩", cat: "우육면", star: 1, lat: 25.0420, lng: 121.5050, url: "https://maps.app.goo.gl/sGiBSVUN6vmb7UCr9" },
+        { name: "푸홍 우육면 24시", desc: "24시간 우육면", area: "시먼딩", cat: "우육면", star: 0, lat: 25.0476245, lng: 121.5051609, url: "https://maps.app.goo.gl/iZr6ivycvHumgvC36" },
+
+        // === 사천요리 ===
+        { name: "진천미 (陳真味)", desc: "🌟 시먼딩 사천요리", area: "시먼딩", cat: "사천요리", star: 1, lat: 25.0435458, lng: 121.5020891, url: "https://maps.app.goo.gl/npV2YxD86SxBnuJH7" },
+        { name: "키키레스토랑 (KIKI)", desc: "101타워 근처", area: "101타워", cat: "사천요리", star: 0, lat: 25.0354761, lng: 121.5634954, url: "https://maps.app.goo.gl/MddFgM6b6B8CaXGb8" },
+
+        // === 철판요리 ===
+        { name: "주조자 철판 (鑄造者)", desc: "🌟🌟 시먼 24시 마감 철판요리", area: "시먼딩", cat: "철판요리", star: 2, lat: 25.04319, lng: 121.5062298, url: "https://maps.app.goo.gl/Va67Lu1TTcsbmHkcA" },
+        { name: "근래철판구이", desc: "시먼 20:30 마감", area: "시먼딩", cat: "철판요리", star: 0, lat: 25.0476197, lng: 121.5077358, url: "https://maps.app.goo.gl/gSbwGNgPPDAWSMg58" },
+
+        // === 이자카야 ===
+        { name: "야키토리 이자카야", desc: "🌟🌟 시먼 이자카야 추천", area: "시먼딩", cat: "이자카야", star: 2, lat: 25.0415376, lng: 121.5051651, url: "https://maps.app.goo.gl/GvEfoqpKkp2sBZqN8" },
+        { name: "사케 꼬치 이자카야", desc: "사케 + 꼬치", area: "시먼딩", cat: "이자카야", star: 0, lat: 25.0464563, lng: 121.5049674, url: "https://maps.app.goo.gl/jeP1nXeUArmrmZnk8" },
+        { name: "분위기 이자카야", desc: "분위기 ★", area: "시먼딩", cat: "이자카야", star: 0, lat: 25.045262, lng: 121.5003468, url: "https://maps.app.goo.gl/Y4cczpWbXFyqJVDS8" },
+
+        // === 술집/맥주 ===
+        { name: "빈티지 이자카야", desc: "🌟 18일 병맥", area: "시먼딩", cat: "술집/맥주", star: 1, lat: 25.0432, lng: 121.5040, url: "https://maps.app.goo.gl/SJmtB5Z7b8UF2Z2Z7" },
+        { name: "18일 생맥주", desc: "생맥주 전문", area: "시먼딩", cat: "술집/맥주", star: 0, lat: 25.0444783, lng: 121.5028946, url: "https://maps.app.goo.gl/Sd2mYgF65zBrzGTA9" },
+        { name: "시먼 칵테일 맥주집", desc: "분위기 좋은 곳", area: "시먼딩", cat: "술집/맥주", star: 0, lat: 25.0437, lng: 121.5060, url: "https://maps.app.goo.gl/miDvRxmBmjSU32b49" },
+        { name: "따다오청 야시장", desc: "🌟 강가에서 맥주마시고 노는 야시장", area: "따다오청", cat: "술집/맥주", star: 1, lat: 25.0561283, lng: 121.5074276, url: "https://maps.app.goo.gl/o3xwvFzxZhvJoR2f9" },
+        { name: "시먼홍러우 야장", desc: "🌟 맥주마시는 야장", area: "시먼딩", cat: "술집/맥주", star: 1, lat: 25.0418943, lng: 121.5062633, url: "https://maps.app.goo.gl/cgA7WrsaGcAKR6EX7" },
+        { name: "러차우 100원술집", desc: "🌟 18데이즈 병맥주", area: "시먼딩", cat: "술집/맥주", star: 1, lat: 25.0428, lng: 121.5035, url: "https://maps.app.goo.gl/NrGGmfUhqPQSj48w5" },
+
+        // === 위스키 ===
+        { name: "가품양주", desc: "위스키 구매처", area: "시먼딩", cat: "위스키", star: 0, lat: 25.0435, lng: 121.5075, url: "https://maps.app.goo.gl/wc8QRrNti56wdWKM9" },
+        { name: "카발란 위스키 매장", desc: "시먼에서 카발란 사기", area: "시먼딩", cat: "위스키", star: 0, lat: 25.0443, lng: 121.5067, url: "https://maps.app.goo.gl/2ogDQU6h2J6vR7M29" },
+
+        // === 과일 ===
+        { name: "시먼 과일집", desc: "까르푸 건너편 오후8시", area: "시먼딩", cat: "과일", star: 0, lat: 25.0450, lng: 121.5090, url: "https://maps.app.goo.gl/55cmSGAxezPd4Hij9" },
+        { name: "金合水果店", desc: "오후9시30분", area: "시먼딩", cat: "과일", star: 0, lat: 25.0455, lng: 121.5085, url: "https://maps.app.goo.gl/VLfwwBTnyTjXYzh18" },
+        { name: "青品蔬菓行", desc: "오후8시", area: "시먼딩", cat: "과일", star: 0, lat: 25.0448, lng: 121.5095, url: "https://maps.app.goo.gl/bUc5sEopVcajGWLX9" },
+        { name: "四季農産行", desc: "오후11시 메인역-시먼 중간", area: "타이베이역", cat: "과일", star: 0, lat: 25.0460, lng: 121.5120, url: "https://maps.app.goo.gl/CNan7sdAJs41Eg8a8" },
+
+        // === 마사지 ===
+        { name: "진우맨 쿵푸마사지 1호점", desc: "👍 발마사지 버스투어 피켓 5%할인(현금)", area: "시먼딩", cat: "마사지", star: 0, lat: 25.044517, lng: 121.5076893, url: "https://maps.app.goo.gl/CPbEKwBNiASEFrDN7" },
+        { name: "진우맨 쿵푸마사지 2호점", desc: "5%할인(현금) 카드시 +10%", area: "시먼딩", cat: "마사지", star: 0, lat: 25.0447334, lng: 121.5051484, url: "https://maps.app.goo.gl/4JW5VMYt4rfReScUA" },
+        { name: "승지도 마사지", desc: "5%할인 타이베이역 근처", area: "타이베이역", cat: "마사지", star: 0, lat: 25.0480, lng: 121.5170, url: "https://maps.app.goo.gl/48sRw5zmSneawWNr6" },
+        { name: "노아 마사지", desc: "10%할인 중산 리젠트호텔 근처", area: "중산", cat: "마사지", star: 0, lat: 25.0530, lng: 121.5230, url: "https://maps.app.goo.gl/FkcmaGdgLhMDo2XS6" },
+
+        // === 쇼핑 ===
+        { name: "우산왕", desc: "시먼 우산 가게", area: "시먼딩", cat: "쇼핑", star: 0, lat: 25.0440, lng: 121.5070, url: "https://maps.app.goo.gl/QfdriLxygpK37qdE7" },
+
+        // === 스린야시장 ===
+        { name: "스린 분위기 술집", desc: "🌟 사장님 유쾌! (음식은 따로 안팔아요)", area: "스린야시장", cat: "야시장", star: 1, lat: 25.0882, lng: 121.5245, url: "https://maps.app.goo.gl/MFBGkftf3iEacnYt8" },
+        { name: "스린 지파이 (鷄排)", desc: "그 유명한 스린 지파이!", area: "스린야시장", cat: "야시장", star: 0, lat: 25.0880, lng: 121.5240, url: "https://maps.app.goo.gl/uu8XehhZNgzKJLyQ9" },
+        { name: "스린 대만식 스테이크", desc: "밑에 면+위에 고기 스타일", area: "스린야시장", cat: "야시장", star: 0, lat: 25.0878, lng: 121.5248, url: "https://maps.app.goo.gl/f7nKySNQ9Cj5qn9i8" },
+        { name: "스린 태국음식", desc: "대만에서 태국음식이 맛있고 싸요!", area: "스린야시장", cat: "야시장", star: 0, lat: 25.0885, lng: 121.5238, url: "https://maps.app.goo.gl/uVopgYna3rasgKMVA" },
+        { name: "스린 대만식 꼬치", desc: "🌟 진짜 추천! 맥주랑 완전 잘어울려요", area: "스린야시장", cat: "야시장", star: 1, lat: 25.0876, lng: 121.5242, url: "https://maps.app.goo.gl/v7QjaihjRMJE93Vc7" },
+
+        // === 닝샤야시장 ===
+        { name: "닝샤 또우화 (豆花)", desc: "🌟 대만에서 무조건 먹어야하는 디저트! 닝샤 최고", area: "닝샤야시장", cat: "야시장", star: 1, lat: 25.0555, lng: 121.5152, url: "https://maps.app.goo.gl/LbzTbYkAkXGjJS1GA" },
+        { name: "닝샤 미슐랭 굴전", desc: "미슐랭 받은 굴전! 한국이랑 다른 스타일", area: "닝샤야시장", cat: "야시장", star: 0, lat: 25.0558, lng: 121.5155, url: "https://maps.app.goo.gl/sYn4dgvisbG2cTVQ7" },
+        { name: "닝샤 꿀토마토", desc: "꼭 드셔보세요 맛나요!!!", area: "닝샤야시장", cat: "야시장", star: 0, lat: 25.0552, lng: 121.5148, url: "https://maps.app.goo.gl/v1gpcPxSMvEXw1zo8" },
+        { name: "닝샤 오징어+오이", desc: "🌟 제일 좋아하는 곳… 줄 엄청 길어요 ㅠㅠ", area: "닝샤야시장", cat: "야시장", star: 1, lat: 25.0560, lng: 121.5150, url: "https://maps.app.goo.gl/oUe92ZH4jr7qyVzM9" },
+
+        // === 고궁 근처 ===
+        { name: "고궁정화", desc: "동파육, 우육면 정말 맛있어요👍", area: "고궁", cat: "고궁근처", star: 0, lat: 25.1020, lng: 121.5485, url: "https://maps.app.goo.gl/p5a5CL8PhCpGcoTZ6" },
+        { name: "딤섬키친", desc: "딤섬 뷔페집!", area: "고궁", cat: "고궁근처", star: 0, lat: 25.1015, lng: 121.5490, url: "https://maps.app.goo.gl/qaV6kJjqxcqjkrrh8" }
+    ];
+
+    // Initialize map
+    const map = L.map('map', { zoomControl: false }).setView([25.048, 121.515], 13);
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Create markers
+    const markers = {};
+    const markerGroup = L.featureGroup();
+
+    places.forEach((p, i) => {
+        const cat = categories[p.cat] || { icon: "📍", color: "#999" };
+        const starStr = p.star > 0 ? "⭐".repeat(p.star) + " " : "";
+
+        const icon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="
+                background: ${cat.color};
+                width: 30px; height: 30px;
+                border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 16px;
+                border: 2px solid white;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                ${p.star >= 2 ? 'width:36px;height:36px;border:3px solid gold;' : ''}
+            ">${cat.icon}</div>`,
+            iconSize: [p.star >= 2 ? 36 : 30, p.star >= 2 ? 36 : 30],
+            iconAnchor: [15, 15]
+        });
+
+        const popupContent = `
+            <div class="popup-title">${starStr}${p.name}</div>
+            <div class="popup-desc">${p.desc}<br><small style="color:#aaa">${p.area}</small></div>
+            ${p.url ? `<a class="popup-link" href="${p.url}" target="_blank">Google Maps에서 보기 →</a>` : ''}
+        `;
+
+        const marker = L.marker([p.lat, p.lng], { icon })
+            .bindPopup(popupContent)
+            .addTo(map);
+
+        marker._placeIndex = i;
+        markers[i] = marker;
+        markerGroup.addLayer(marker);
+    });
+
+    // Build sidebar
+    const filterBar = document.getElementById('filterBar');
+    const placeList = document.getElementById('placeList');
+
+    // Filter buttons
+    const allBtn = document.createElement('button');
+    allBtn.className = 'filter-btn active';
+    allBtn.textContent = '전체';
+    allBtn.dataset.cat = 'all';
+    filterBar.appendChild(allBtn);
+
+    const usedCats = [...new Set(places.map(p => p.cat))];
+    usedCats.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn';
+        btn.textContent = `${categories[cat]?.icon || ''} ${cat}`;
+        btn.dataset.cat = cat;
+        filterBar.appendChild(btn);
+    });
+
+    // Place list grouped by category
+    function renderList(filterCat) {
+        placeList.innerHTML = '';
+        const groups = {};
+        places.forEach((p, i) => {
+            if (filterCat !== 'all' && p.cat !== filterCat) return;
+            if (!groups[p.cat]) groups[p.cat] = [];
+            groups[p.cat].push({ ...p, idx: i });
+        });
+
+        Object.entries(groups).forEach(([cat, items]) => {
+            const catInfo = categories[cat] || { icon: "📍", color: "#999" };
+            const header = document.createElement('div');
+            header.className = 'category-header';
+            header.textContent = `${catInfo.icon} ${cat} (${items.length})`;
+            placeList.appendChild(header);
+
+            items.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'place-item';
+                div.dataset.idx = p.idx;
+                div.innerHTML = `
+                    <div class="place-icon" style="background:${catInfo.color}20">${catInfo.icon}</div>
+                    <div class="place-info">
+                        <div class="place-name">
+                            ${p.star > 0 ? `<span class="star">${"⭐".repeat(p.star)}</span>` : ''}
+                            ${p.name}
+                        </div>
+                        <div class="place-desc">${p.desc}</div>
+                        <div class="place-area">📍 ${p.area}</div>
+                        ${p.url ? `<a class="gmaps-link" href="${p.url}" target="_blank" onclick="event.stopPropagation()">Google Maps →</a>` : ''}
+                    </div>
+                `;
+                div.addEventListener('click', () => {
+                    map.setView([p.lat, p.lng], 17);
+                    markers[p.idx].openPopup();
+                });
+                placeList.appendChild(div);
+            });
+        });
+    }
+
+    renderList('all');
+
+    // Filter click
+    filterBar.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('filter-btn')) return;
+        filterBar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        const cat = e.target.dataset.cat;
+        renderList(cat);
+
+        // Show/hide markers
+        places.forEach((p, i) => {
+            if (cat === 'all' || p.cat === cat) {
+                if (!map.hasLayer(markers[i])) markers[i].addTo(map);
+            } else {
+                map.removeLayer(markers[i]);
+            }
+        });
+
+        if (cat !== 'all') {
+            const visible = places.filter(p => p.cat === cat);
+            if (visible.length > 0) {
+                const group = L.featureGroup(visible.map((_, vi) => {
+                    const idx = places.findIndex(p => p === visible[vi] || (p.name === visible[vi].name));
+                    return markers[places.indexOf(visible[vi])];
+                }));
+                map.fitBounds(group.getBounds().pad(0.2));
+            }
+        } else {
+            map.fitBounds(markerGroup.getBounds().pad(0.1));
+        }
+    });
+    </script>
+</body>
+</html>
